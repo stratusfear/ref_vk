@@ -146,7 +146,6 @@ cvar_t	*vid_gamma;
 static cvar_t	*viewsize;
 
 #if defined(HAVE_MOLTENVK)
-PFN_vkGetPhysicalDeviceMetalFeaturesMVK qvkGetPhysicalDeviceMetalFeaturesMVK;
 PFN_vkGetMoltenVKConfigurationMVK qvkGetMoltenVKConfigurationMVK;
 PFN_vkSetMoltenVKConfigurationMVK qvkSetMoltenVKConfigurationMVK;
 #endif
@@ -1726,8 +1725,6 @@ static int RE_PrepareForWindow(void)
 	void *molten = dlopen("libMoltenVK.dylib", RTLD_LOCAL | RTLD_NOW);
 	if (molten)
 	{
-		qvkGetPhysicalDeviceMetalFeaturesMVK =
-			(PFN_vkGetPhysicalDeviceMetalFeaturesMVK)dlsym(molten, "vkGetPhysicalDeviceMetalFeaturesMVK");
 		qvkGetMoltenVKConfigurationMVK =
 			(PFN_vkGetMoltenVKConfigurationMVK)dlsym(molten, "vkGetMoltenVKConfigurationMVK");
 		qvkSetMoltenVKConfigurationMVK =

@@ -266,13 +266,6 @@ void Vk_Strings_f(void)
 	{
 		Com_Printf("   driverName: %s\n", vk_device.driverName);
 	}
-#if defined(HAVE_MOLTENVK)
-	if (vk_device.isMoltenVK)
-	Com_Printf("   mslVersion: %d.%d.%d\n",
-		VK_VERSION_MAJOR(vk_device.metalFeatures.mslVersion),
-		VK_VERSION_MINOR(vk_device.metalFeatures.mslVersion),
-		VK_VERSION_PATCH(vk_device.metalFeatures.mslVersion));
-#endif
 	Com_Printf("   deviceType: %s\n", vk_config.device_type);
 	Com_Printf("   gfx/present/transfer: %d/%d/%d\n",
 		vk_device.gfxFamilyIndex,

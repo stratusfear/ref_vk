@@ -50,7 +50,6 @@ typedef struct
 	VkPhysicalDeviceProperties properties;
 	VkPhysicalDeviceFeatures   features;
 #if defined(HAVE_MOLTENVK)
-	MVKPhysicalDeviceMetalFeatures metalFeatures;
 	qboolean isMoltenVK;	// device is driven by MoltenVK (as opposed to e.g. KosmicKrisp)
 #endif
 	qboolean portabilitySubset;	// device exposes VK_KHR_portability_subset
@@ -290,7 +289,6 @@ extern PFN_vkCmdInsertDebugUtilsLabelEXT qvkInsertDebugUtilsLabelEXT;
 extern PFN_vkCreateDebugReportCallbackEXT qvkCreateDebugReportCallbackEXT;
 extern PFN_vkDestroyDebugReportCallbackEXT qvkDestroyDebugReportCallbackEXT;
 #if defined(HAVE_MOLTENVK)
-extern PFN_vkGetPhysicalDeviceMetalFeaturesMVK qvkGetPhysicalDeviceMetalFeaturesMVK;
 extern PFN_vkGetMoltenVKConfigurationMVK qvkGetMoltenVKConfigurationMVK;
 extern PFN_vkSetMoltenVKConfigurationMVK qvkSetMoltenVKConfigurationMVK;
 #endif

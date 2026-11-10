@@ -103,10 +103,6 @@ getBestPhysicalDevice(const VkPhysicalDevice *devices, int preferredIdx,
 {
 	VkPhysicalDeviceProperties deviceProperties;
 	VkPhysicalDeviceFeatures deviceFeatures;
-#if defined(HAVE_MOLTENVK)
-	MVKPhysicalDeviceMetalFeatures deviceMetalFeatures;
-	size_t featuresSize = sizeof(MVKPhysicalDeviceMetalFeatures);
-#endif
 	char driverName[256];
 	qboolean isMoltenVK;
 	qboolean portabilitySubset;
@@ -119,14 +115,6 @@ getBestPhysicalDevice(const VkPhysicalDevice *devices, int preferredIdx,
 		isMoltenVK = queryDriver(devices[i], deviceProperties.apiVersion,
 			driverName, sizeof(driverName));
 		(void)isMoltenVK;
-#if defined(HAVE_MOLTENVK)
-		memset(&deviceMetalFeatures, 0, sizeof(deviceMetalFeatures));
-		// the MVK entry points only work on MoltenVK devices
-		if (isMoltenVK && qvkGetPhysicalDeviceMetalFeaturesMVK)
-		{
-			qvkGetPhysicalDeviceMetalFeaturesMVK(devices[i], &deviceMetalFeatures, &featuresSize);
-		}
-#endif
 		vkGetPhysicalDeviceQueueFamilyProperties(devices[i], &queueFamilyCount, NULL);
 
 		if (queueFamilyCount == 0)
@@ -213,7 +201,6 @@ getBestPhysicalDevice(const VkPhysicalDevice *devices, int preferredIdx,
 				vk_device.properties = deviceProperties;
 				vk_device.features = deviceFeatures;
 #if defined(HAVE_MOLTENVK)
-				vk_device.metalFeatures = deviceMetalFeatures;
 				vk_device.isMoltenVK = isMoltenVK;
 #endif
 				vk_device.portabilitySubset = portabilitySubset;
