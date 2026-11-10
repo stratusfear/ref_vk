@@ -136,6 +136,16 @@ void QVk_CreatePipeline(const VkDescriptorSetLayout *descriptorLayout,
 		.maxDepthBounds = 1.f
 	};
 
+	/* A non-opaque swapchain is composited using its alpha channel. The
+	   swapchain is cleared to alpha 1.0, so never write alpha to it:
+	   translucent UI drawn with alpha blending would otherwise lower it
+	   and let the background show through. */
+	VkPipelineColorBlendAttachmentState blendOpts = pipeline->blendOpts;
+	if (renderpass->presents && vk_swapchain.nonOpaque)
+	{
+		blendOpts.colorWriteMask &= ~VK_COLOR_COMPONENT_A_BIT;
+	}
+
 	VkPipelineColorBlendStateCreateInfo cbsCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 		.pNext = NULL,
@@ -143,7 +153,7 @@ void QVk_CreatePipeline(const VkDescriptorSetLayout *descriptorLayout,
 		.logicOpEnable = VK_FALSE,
 		.logicOp = VK_LOGIC_OP_COPY,
 		.attachmentCount = 1,
-		.pAttachments = &pipeline->blendOpts,
+		.pAttachments = &blendOpts,
 		.blendConstants[0] = 0.f,
 		.blendConstants[1] = 0.f,
 		.blendConstants[2] = 0.f,

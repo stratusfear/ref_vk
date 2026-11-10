@@ -162,6 +162,7 @@ extern	cvar_t	*vk_lmaptexturemode;
 extern	cvar_t	*vk_aniso;
 extern	cvar_t	*vk_sampleshading;
 extern	cvar_t	*vk_device_idx;
+extern	cvar_t	*vk_nonopaque;
 extern	cvar_t	*vk_mip_nearfilter;
 #if defined(HAVE_MOLTENVK)
 extern  cvar_t  *vk_molten_fastmath;

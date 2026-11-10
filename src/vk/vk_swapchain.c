@@ -118,6 +118,26 @@ static const VkCompositeAlphaFlagBitsKHR compositeAlphaFlags[] = {
 // internal helper
 static VkCompositeAlphaFlagBitsKHR getSupportedCompositeAlpha(VkCompositeAlphaFlagsKHR supportedFlags)
 {
+	/*
+	 * KosmicKrisp (macOS): with an opaque layer, a window covering the whole
+	 * display (fullscreen) gets promoted to direct-to-display by the window
+	 * server and presentation stalls after a few seconds: black or frozen
+	 * output that only resumes after switching away and back. A pre-multiplied
+	 * layer is composited instead and works. This relies on the alpha channel
+	 * of the swapchain staying at 1.0, see QVk_CreatePipeline().
+	 */
+	qboolean nonOpaque = vk_nonopaque->value > 0 ||
+		(vk_nonopaque->value < 0 && strstr(vk_device.driverName, "KosmicKrisp") != NULL);
+
+	vk_swapchain.nonOpaque = false;
+
+	if (nonOpaque && (supportedFlags & VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR))
+	{
+		vk_swapchain.nonOpaque = true;
+		Com_Printf("...using pre-multiplied composite alpha\n");
+		return VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR;
+	}
+
 	for (int i = 0; i < 4; ++i)
 	{
 		if (supportedFlags & compositeAlphaFlags[i])

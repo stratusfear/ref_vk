@@ -73,6 +73,8 @@ typedef struct
 	VkExtent2D extent;
 	VkImage *images;
 	int imageCount;
+	// swapchain uses a non-opaque composite alpha mode (see vk_nonopaque)
+	qboolean nonOpaque;
 } qvkswapchain_t;
 
 // available sampler types
@@ -133,6 +135,8 @@ typedef struct
 	VkRenderPass rp;
 	VkAttachmentLoadOp colorLoadOp;
 	VkSampleCountFlagBits sampleCount;
+	// renderpass outputs to the swapchain image
+	qboolean presents;
 } qvkrenderpass_t;
 
 // Vulkan buffer

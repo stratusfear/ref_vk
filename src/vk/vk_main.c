@@ -131,6 +131,7 @@ cvar_t	*vk_aniso;
 cvar_t	*vk_mip_nearfilter;
 cvar_t	*vk_sampleshading;
 cvar_t	*vk_device_idx;
+cvar_t	*vk_nonopaque;
 cvar_t	*r_retexturing;
 cvar_t	*r_scale8bittextures;
 static cvar_t	*vk_underwater;
@@ -1167,6 +1168,9 @@ R_Register(void)
 	vk_mip_nearfilter = ri.Cvar_Get("vk_mip_nearfilter", "0", CVAR_ARCHIVE);
 	vk_sampleshading = ri.Cvar_Get("vk_sampleshading", "1", CVAR_ARCHIVE);
 	vk_device_idx = ri.Cvar_Get("vk_device", "-1", CVAR_ARCHIVE);
+	/* -1 = automatic (on for KosmicKrisp), 0 = never, 1 = always. See
+	   getSupportedCompositeAlpha() in vk_swapchain.c. Needs a vid_restart. */
+	vk_nonopaque = ri.Cvar_Get("vk_nonopaque", "-1", CVAR_ARCHIVE);
 #if defined(HAVE_MOLTENVK)
 	vk_molten_fastmath = ri.Cvar_Get("vk_molten_fastmath", "0", CVAR_ARCHIVE);
 	vk_molten_metalbuffers = ri.Cvar_Get("vk_molten_metalbuffer", "0", CVAR_ARCHIVE);
