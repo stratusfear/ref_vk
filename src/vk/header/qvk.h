@@ -55,6 +55,8 @@ typedef struct
 #endif
 	qboolean portabilitySubset;	// device exposes VK_KHR_portability_subset
 	char driverName[256];	// VkPhysicalDeviceDriverProperties::driverName, if available
+	// prefer a non-opaque swapchain (vk_nonopaque), decided once in QVk_Init()
+	qboolean preferNonOpaque;
 	VkQueue gfxQueue;
 	VkQueue presentQueue;
 	VkQueue transferQueue;

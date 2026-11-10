@@ -1708,7 +1708,9 @@ static int RE_PrepareForWindow(void)
 
 	if (!loaded)
 	{
+		/* volk would call through a NULL vkGetInstanceProcAddr */
 		Com_Printf("%s() Loader import failed: %s\n", __func__, SDL_GetError());
+		return -1;
 	}
 
 #ifdef USE_SDL3

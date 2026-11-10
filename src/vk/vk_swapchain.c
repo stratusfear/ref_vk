@@ -126,12 +126,9 @@ static VkCompositeAlphaFlagBitsKHR getSupportedCompositeAlpha(VkCompositeAlphaFl
 	 * layer is composited instead and works. This relies on the alpha channel
 	 * of the swapchain staying at 1.0, see QVk_CreatePipeline().
 	 */
-	qboolean nonOpaque = vk_nonopaque->value > 0 ||
-		(vk_nonopaque->value < 0 && strstr(vk_device.driverName, "KosmicKrisp") != NULL);
-
 	vk_swapchain.nonOpaque = false;
 
-	if (nonOpaque && (supportedFlags & VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR))
+	if (vk_device.preferNonOpaque && (supportedFlags & VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR))
 	{
 		vk_swapchain.nonOpaque = true;
 		Com_Printf("...using pre-multiplied composite alpha\n");
@@ -141,7 +138,13 @@ static VkCompositeAlphaFlagBitsKHR getSupportedCompositeAlpha(VkCompositeAlphaFl
 	for (int i = 0; i < 4; ++i)
 	{
 		if (supportedFlags & compositeAlphaFlags[i])
+		{
+			// no opaque mode offered: the alpha channel matters here too
+			vk_swapchain.nonOpaque =
+				compositeAlphaFlags[i] == VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR ||
+				compositeAlphaFlags[i] == VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR;
 			return compositeAlphaFlags[i];
+		}
 	}
 
 	return VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;

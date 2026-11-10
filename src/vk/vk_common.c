@@ -1988,35 +1988,38 @@ QVk_Init(void)
 #if defined(HAVE_MOLTENVK)
 	if (qvkGetMoltenVKConfigurationMVK && qvkSetMoltenVKConfigurationMVK)
 	{
-	MVKConfiguration vk_molten_config;
-	size_t vk_molten_len = sizeof(MVKConfiguration);
-	memset(&vk_molten_config, 0, vk_molten_len);
-	// Preferably getting the existing configuration to fill the most vital
-	// data instead of "smartly" setting by hand.
-	// We do not pass vk_instance here as we change before its creation
-	// anyway, the api ignore it.
-	if (qvkGetMoltenVKConfigurationMVK(VK_NULL_HANDLE, &vk_molten_config, &vk_molten_len) != VK_SUCCESS)
-	{
-		Com_Printf("%s(): Could not fetch the MoltenVK configuration\n", __func__);
-		return false;
-	}
-
-	Com_Printf("%s(): Molten fast math %d\n", __func__, vk_molten_config.fastMathEnabled);
-	Com_Printf("%s(): Molten Metal buffers %d\n", __func__, vk_molten_config.useMetalArgumentBuffers);
-
-	VkBool32 fastMath = vk_molten_fastmath->value > 0 ? VK_TRUE : VK_FALSE;
-	VkBool32 metalBuffers = vk_molten_metalbuffers->value > 0 ? VK_TRUE : VK_FALSE;
-	// unsure of the lost device resuming option value yet might need further testing
-	// also a watermark is available, more fit for demo but might be invading tough
-
-	if (vk_molten_config.fastMathEnabled != fastMath || vk_molten_config.useMetalArgumentBuffers != metalBuffers) {
-		vk_molten_config.fastMathEnabled = fastMath;
-		vk_molten_config.useMetalArgumentBuffers = metalBuffers;
-		if (qvkSetMoltenVKConfigurationMVK(VK_NULL_HANDLE, &vk_molten_config, &vk_molten_len) != VK_SUCCESS)
+		MVKConfiguration vk_molten_config;
+		size_t vk_molten_len = sizeof(MVKConfiguration);
+		memset(&vk_molten_config, 0, vk_molten_len);
+		// Preferably getting the existing configuration to fill the most vital
+		// data instead of "smartly" setting by hand.
+		// We do not pass vk_instance here as we change before its creation
+		// anyway, the api ignore it.
+		// MoltenVK is optional (the active driver may be e.g. KosmicKrisp),
+		// so failing to tune it is not fatal.
+		if (qvkGetMoltenVKConfigurationMVK(VK_NULL_HANDLE, &vk_molten_config, &vk_molten_len) != VK_SUCCESS)
 		{
-			Com_Printf("%s(): Could not update the MoltenVK configuration\n", __func__);
+			Com_Printf("%s(): Could not fetch the MoltenVK configuration\n", __func__);
 		}
-	}
+		else
+		{
+			Com_Printf("%s(): Molten fast math %d\n", __func__, vk_molten_config.fastMathEnabled);
+			Com_Printf("%s(): Molten Metal buffers %d\n", __func__, vk_molten_config.useMetalArgumentBuffers);
+
+			VkBool32 fastMath = vk_molten_fastmath->value > 0 ? VK_TRUE : VK_FALSE;
+			VkBool32 metalBuffers = vk_molten_metalbuffers->value > 0 ? VK_TRUE : VK_FALSE;
+			// unsure of the lost device resuming option value yet might need further testing
+			// also a watermark is available, more fit for demo but might be invading tough
+
+			if (vk_molten_config.fastMathEnabled != fastMath || vk_molten_config.useMetalArgumentBuffers != metalBuffers) {
+				vk_molten_config.fastMathEnabled = fastMath;
+				vk_molten_config.useMetalArgumentBuffers = metalBuffers;
+				if (qvkSetMoltenVKConfigurationMVK(VK_NULL_HANDLE, &vk_molten_config, &vk_molten_len) != VK_SUCCESS)
+				{
+					Com_Printf("%s(): Could not update the MoltenVK configuration\n", __func__);
+				}
+			}
+		}
 	}
 #endif
 
@@ -2129,6 +2132,12 @@ QVk_Init(void)
 	{
 		vulkan_memory_types_show();
 	}
+
+	/* Decided once per QVk_Init(): pipelines mask alpha writes based on it
+	   and are not recreated with the swapchain, so changing vk_nonopaque
+	   only takes effect after a vid_restart. */
+	vk_device.preferNonOpaque = vk_nonopaque->value > 0 ||
+		(vk_nonopaque->value < 0 && strstr(vk_device.driverName, "KosmicKrisp") != NULL);
 
 	// setup swapchain
 	res = QVk_CreateSwapchain();
