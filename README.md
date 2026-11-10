@@ -29,7 +29,27 @@ You'll need:
 * vulkan-headers,
 * vulkan-validationlayers if you like to debug issues.
 
-For vulkan-headers on macOS with Homebrew: `brew install molten-vk`.
+For vulkan-headers on macOS:
+
+* Homebrew: `brew install molten-vk`
+* MacPorts: `sudo port install vulkan-headers` (add `MoltenVK` to also
+  install the MoltenVK driver)
+
+On macOS the library works with either MoltenVK or KosmicKrisp (LunarG's
+Mesa based Vulkan driver), selected at runtime:
+
+* KosmicKrisp requires macOS 26 (Tahoe) or newer, and needs the Vulkan
+  loader, which is not part of the driver:
+  * Homebrew: `brew install mesa vulkan-loader` (Homebrew's mesa includes
+    KosmicKrisp on macOS 26 and newer)
+  * MacPorts: `sudo port install mesa +kosmickrisp vulkan-loader`
+
+  The loader is also looked up in `/opt/homebrew/lib`, `/opt/local/lib`
+  and `/usr/local/lib`, so no `DYLD_LIBRARY_PATH` is needed for it.
+* MoltenVK specific tuning (the `vk_molten_*` cvars below) is compiled in
+  when the MoltenVK headers are found. Control this with
+  `make WITH_MOLTENVK=auto|yes|no` (default: `auto`). A build without it
+  still runs on MoltenVK.
 
 Type `make` to compile the library. If the compilation is successfull,
 the library can be found under *release/ref_vk.dll* (Windows) or
@@ -70,6 +90,15 @@ On macOS it is necessary to set `DYLD_LIBRARY_PATH` to load the Vulkan Portabili
     `vk_strings` command)
 
 * **vk_sampleshading**: Toggle sample shading for MSAA. (default: `1`)
+
+* **vk_nonopaque**: Present through a non-opaque (pre-multiplied alpha)
+  swapchain, so the window system composites the game instead of showing
+  it directly. Works around frozen or black fullscreen output with
+  KosmicKrisp on macOS. Only used if the surface supports pre-multiplied
+  alpha. Requires a `vid_restart`.
+  * `-1` - automatic, enabled only with the KosmicKrisp driver (default)
+  * `0` - never
+  * `1` - always
 
 * **vk_flashblend**: Toggle the blending of lights onto the environment.
   (default: `0`)
@@ -139,6 +168,9 @@ On macOS it is necessary to set `DYLD_LIBRARY_PATH` to load the Vulkan Portabili
   the effect. Defaults to `1`.
 
 ## Console Variables (macOS)
+
+Only available in builds with MoltenVK support, and only effective when
+MoltenVK is the active driver.
 
 * **vk_molten_metalbuffers**: enable/disable Metal buffers to bind textures
   more efficiently (>= Big Sur). (default: `0`)
