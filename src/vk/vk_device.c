@@ -59,6 +59,37 @@ deviceExtensionsSupported(const VkPhysicalDevice *physicalDevice, const char* ex
 	return vk_extension_available;
 }
 
+/* internal helper: fetch the driver name / id of a physical device.
+   Returns true if the device is driven by MoltenVK. */
+static qboolean
+queryDriver(VkPhysicalDevice device, char *driverName, size_t nameSize)
+{
+	qboolean moltenvk = false;
+
+	driverName[0] = '\0';
+
+#if defined(VK_VERSION_1_2)
+	if (vkGetPhysicalDeviceProperties2)
+	{
+		VkPhysicalDeviceDriverProperties driverProps = {
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES
+		};
+		VkPhysicalDeviceProperties2 props2 = {
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+			.pNext = &driverProps
+		};
+
+		vkGetPhysicalDeviceProperties2(device, &props2);
+		Q_strlcpy(driverName, driverProps.driverName, nameSize);
+#if defined(HAVE_MOLTENVK)
+		moltenvk = driverProps.driverID == VK_DRIVER_ID_MOLTENVK;
+#endif
+	}
+#endif
+
+	return moltenvk;
+}
+
 /* internal helper */
 static void
 getBestPhysicalDevice(const VkPhysicalDevice *devices, int preferredIdx,
@@ -66,18 +97,28 @@ getBestPhysicalDevice(const VkPhysicalDevice *devices, int preferredIdx,
 {
 	VkPhysicalDeviceProperties deviceProperties;
 	VkPhysicalDeviceFeatures deviceFeatures;
-#if defined(__APPLE__)
+#if defined(HAVE_MOLTENVK)
 	MVKPhysicalDeviceMetalFeatures deviceMetalFeatures;
 	size_t featuresSize = sizeof(MVKPhysicalDeviceMetalFeatures);
 #endif
+	char driverName[256];
+	qboolean isMoltenVK;
+	qboolean portabilitySubset;
 	uint32_t queueFamilyCount = 0;
 
 	for (int i = 0; i < count; ++i)
 	{
 		vkGetPhysicalDeviceProperties(devices[i], &deviceProperties);
 		vkGetPhysicalDeviceFeatures(devices[i], &deviceFeatures);
-#if defined(__APPLE__)
-		qvkGetPhysicalDeviceMetalFeaturesMVK(devices[i], &deviceMetalFeatures, &featuresSize);
+		isMoltenVK = queryDriver(devices[i], driverName, sizeof(driverName));
+		(void)isMoltenVK;
+#if defined(HAVE_MOLTENVK)
+		memset(&deviceMetalFeatures, 0, sizeof(deviceMetalFeatures));
+		// the MVK entry points only work on MoltenVK devices
+		if (isMoltenVK && qvkGetPhysicalDeviceMetalFeaturesMVK)
+		{
+			qvkGetPhysicalDeviceMetalFeaturesMVK(devices[i], &deviceMetalFeatures, &featuresSize);
+		}
 #endif
 		vkGetPhysicalDeviceQueueFamilyProperties(devices[i], &queueFamilyCount, NULL);
 
@@ -100,12 +141,9 @@ getBestPhysicalDevice(const VkPhysicalDevice *devices, int preferredIdx,
 				continue;
 			}
 
-#if defined(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME) && defined(__APPLE__)
-			if (!deviceExtensionsSupported(&devices[i], VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME))
-			{
-				continue;
-			}
-#endif
+			// portability drivers (MoltenVK) expose this and require it to be
+			// enabled; conformant ones (KosmicKrisp) don't
+			portabilitySubset = deviceExtensionsSupported(&devices[i], "VK_KHR_portability_subset");
 
 			// if extensions are fine, query surface formats and present modes to see if the device can be used
 			VK_VERIFY(vkGetPhysicalDeviceSurfaceFormatsKHR(devices[i], vk_surface,
@@ -167,9 +205,12 @@ getBestPhysicalDevice(const VkPhysicalDevice *devices, int preferredIdx,
 				vk_device.physical = devices[i];
 				vk_device.properties = deviceProperties;
 				vk_device.features = deviceFeatures;
-#if defined(__APPLE__)
+#if defined(HAVE_MOLTENVK)
 				vk_device.metalFeatures = deviceMetalFeatures;
+				vk_device.isMoltenVK = isMoltenVK;
 #endif
+				vk_device.portabilitySubset = portabilitySubset;
+				Q_strlcpy(vk_device.driverName, driverName, sizeof(vk_device.driverName));
 				return;
 			}
 		}
@@ -270,18 +311,22 @@ static VkResult createLogicalDevice()
 		queueCreateInfo[numQueues++].queueFamilyIndex = vk_device.transferFamilyIndex;
 	}
 
-	const char *deviceExtensions[] = {
+	const char *deviceExtensions[2] = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-#if defined(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME) && defined(__APPLE__)
-		VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME,
-#endif
 	};
+	uint32_t deviceExtensionCount = 1;
+
+	// mandatory when the device advertises it (MoltenVK)
+	if (vk_device.portabilitySubset)
+	{
+		deviceExtensions[deviceExtensionCount++] = "VK_KHR_portability_subset";
+	}
 
 	VkDeviceCreateInfo deviceCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 		.pEnabledFeatures = &wantedDeviceFeatures,
 		.ppEnabledExtensionNames = deviceExtensions,
-		.enabledExtensionCount = sizeof(deviceExtensions) / sizeof(deviceExtensions[0]),
+		.enabledExtensionCount = deviceExtensionCount,
 		.enabledLayerCount = 0,
 		.ppEnabledLayerNames = NULL,
 		.queueCreateInfoCount = numQueues,

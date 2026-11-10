@@ -23,7 +23,7 @@
 #ifndef  __VK_UTIL_H__
 #define  __VK_UTIL_H__
 
-#ifdef __APPLE__
+#ifdef HAVE_MOLTENVK
 #define VOLK_VULKAN_H_PATH <MoltenVK/vk_mvk_moltenvk.h>
 #endif
 #include "../volk/volk.h"

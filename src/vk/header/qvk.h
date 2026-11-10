@@ -35,7 +35,7 @@
 #include "util.h"
 #include "shaders.h"
 
-#if defined(__APPLE__)
+#if defined(HAVE_MOLTENVK)
 #undef VK_NO_PROTOTYPES
 #define VK_NO_PROTOTYPES 1
 #include <MoltenVK/vk_mvk_moltenvk.h>
@@ -49,9 +49,12 @@ typedef struct
 	VkPhysicalDeviceMemoryProperties mem_properties;
 	VkPhysicalDeviceProperties properties;
 	VkPhysicalDeviceFeatures   features;
-#if defined(__APPLE__)
+#if defined(HAVE_MOLTENVK)
 	MVKPhysicalDeviceMetalFeatures metalFeatures;
+	qboolean isMoltenVK;	// device is driven by MoltenVK (as opposed to e.g. KosmicKrisp)
 #endif
+	qboolean portabilitySubset;	// device exposes VK_KHR_portability_subset
+	char driverName[256];	// VkPhysicalDeviceDriverProperties::driverName, if available
 	VkQueue gfxQueue;
 	VkQueue presentQueue;
 	VkQueue transferQueue;
@@ -280,7 +283,7 @@ extern PFN_vkCmdEndDebugUtilsLabelEXT qvkCmdEndDebugUtilsLabelEXT;
 extern PFN_vkCmdInsertDebugUtilsLabelEXT qvkInsertDebugUtilsLabelEXT;
 extern PFN_vkCreateDebugReportCallbackEXT qvkCreateDebugReportCallbackEXT;
 extern PFN_vkDestroyDebugReportCallbackEXT qvkDestroyDebugReportCallbackEXT;
-#if defined(__APPLE__)
+#if defined(HAVE_MOLTENVK)
 extern PFN_vkGetPhysicalDeviceMetalFeaturesMVK qvkGetPhysicalDeviceMetalFeaturesMVK;
 extern PFN_vkGetMoltenVKConfigurationMVK qvkGetMoltenVKConfigurationMVK;
 extern PFN_vkSetMoltenVKConfigurationMVK qvkSetMoltenVKConfigurationMVK;

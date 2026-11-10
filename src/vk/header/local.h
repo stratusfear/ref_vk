@@ -50,8 +50,11 @@
 #include "qvk.h"
 
 #if defined(__APPLE__)
-#include <MoltenVK/vk_mvk_moltenvk.h>
 #include <dlfcn.h>
+#endif
+
+#if defined(HAVE_MOLTENVK)
+#include <MoltenVK/vk_mvk_moltenvk.h>
 #endif
 
 // verify if VkResult is VK_SUCCESS
@@ -160,7 +163,7 @@ extern	cvar_t	*vk_aniso;
 extern	cvar_t	*vk_sampleshading;
 extern	cvar_t	*vk_device_idx;
 extern	cvar_t	*vk_mip_nearfilter;
-#if defined(__APPLE__)
+#if defined(HAVE_MOLTENVK)
 extern  cvar_t  *vk_molten_fastmath;
 extern  cvar_t  *vk_molten_metalbuffers;
 #endif

@@ -103,7 +103,7 @@ cvar_t	*vk_picmip;
 cvar_t	*r_palettedtexture;
 cvar_t	*vk_flashblend;
 cvar_t	*vk_finish;
-#if defined(__APPLE__)
+#if defined(HAVE_MOLTENVK)
 cvar_t  *vk_molten_fastmath;
 cvar_t  *vk_molten_metalbuffers;
 #endif
@@ -144,7 +144,7 @@ cvar_t	*vid_fullscreen;
 cvar_t	*vid_gamma;
 static cvar_t	*viewsize;
 
-#if defined(__APPLE__)
+#if defined(HAVE_MOLTENVK)
 PFN_vkGetPhysicalDeviceMetalFeaturesMVK qvkGetPhysicalDeviceMetalFeaturesMVK;
 PFN_vkGetMoltenVKConfigurationMVK qvkGetMoltenVKConfigurationMVK;
 PFN_vkSetMoltenVKConfigurationMVK qvkSetMoltenVKConfigurationMVK;
@@ -1167,7 +1167,7 @@ R_Register(void)
 	vk_mip_nearfilter = ri.Cvar_Get("vk_mip_nearfilter", "0", CVAR_ARCHIVE);
 	vk_sampleshading = ri.Cvar_Get("vk_sampleshading", "1", CVAR_ARCHIVE);
 	vk_device_idx = ri.Cvar_Get("vk_device", "-1", CVAR_ARCHIVE);
-#if defined(__APPLE__)
+#if defined(HAVE_MOLTENVK)
 	vk_molten_fastmath = ri.Cvar_Get("vk_molten_fastmath", "0", CVAR_ARCHIVE);
 	vk_molten_metalbuffers = ri.Cvar_Get("vk_molten_metalbuffer", "0", CVAR_ARCHIVE);
 #endif
@@ -1673,9 +1673,38 @@ RE_IsVsyncActive(void)
 
 static int RE_PrepareForWindow(void)
 {
-	if (SDL_Vulkan_LoadLibrary(NULL))
+#ifdef USE_SDL3
+	/* SDL3 returns true on success, SDL2 returns 0 */
+	qboolean loaded = SDL_Vulkan_LoadLibrary(NULL);
+#else
+	qboolean loaded = !SDL_Vulkan_LoadLibrary(NULL);
+#endif
+
+#if defined(__APPLE__)
+	/* SDL only looks for the loader in a few places that don't include
+	   package manager prefixes (MacPorts, Homebrew) */
+	if (!loaded)
 	{
-		Com_Printf("%s() Loader import failed: %s", __func__, SDL_GetError());
+		static const char *paths[] = {
+			"/opt/local/lib/libvulkan.dylib",
+			"/opt/homebrew/lib/libvulkan.dylib",
+			"/usr/local/lib/libvulkan.dylib"
+		};
+
+		for (size_t i = 0; i < sizeof(paths) / sizeof(paths[0]) && !loaded; i++)
+		{
+#ifdef USE_SDL3
+			loaded = SDL_Vulkan_LoadLibrary(paths[i]);
+#else
+			loaded = !SDL_Vulkan_LoadLibrary(paths[i]);
+#endif
+		}
+	}
+#endif
+
+	if (!loaded)
+	{
+		Com_Printf("%s() Loader import failed: %s\n", __func__, SDL_GetError());
 	}
 
 #ifdef USE_SDL3
@@ -1684,19 +1713,20 @@ static int RE_PrepareForWindow(void)
 	volkInitializeCustom(SDL_Vulkan_GetVkGetInstanceProcAddr());
 #endif
 
-#if defined(__APPLE__)
+#if defined(HAVE_MOLTENVK)
+	/* MoltenVK is optional: it only provides extra tuning entry points.
+	   Without it (e.g. when running on KosmicKrisp) the pointers stay NULL
+	   and every user must check them. */
 	void *molten = dlopen("libMoltenVK.dylib", RTLD_LOCAL | RTLD_NOW);
-	if (!molten)
+	if (molten)
 	{
-		return -1;
+		qvkGetPhysicalDeviceMetalFeaturesMVK =
+			(PFN_vkGetPhysicalDeviceMetalFeaturesMVK)dlsym(molten, "vkGetPhysicalDeviceMetalFeaturesMVK");
+		qvkGetMoltenVKConfigurationMVK =
+			(PFN_vkGetMoltenVKConfigurationMVK)dlsym(molten, "vkGetMoltenVKConfigurationMVK");
+		qvkSetMoltenVKConfigurationMVK =
+			(PFN_vkSetMoltenVKConfigurationMVK)dlsym(molten, "vkSetMoltenVKConfigurationMVK");
 	}
-
-	qvkGetPhysicalDeviceMetalFeaturesMVK =
-		(PFN_vkGetPhysicalDeviceMetalFeaturesMVK)dlsym(molten, "vkGetPhysicalDeviceMetalFeaturesMVK");
-	qvkGetMoltenVKConfigurationMVK =
-		(PFN_vkGetMoltenVKConfigurationMVK)dlsym(molten, "vkGetMoltenVKConfigurationMVK");
-	qvkSetMoltenVKConfigurationMVK =
-		(PFN_vkSetMoltenVKConfigurationMVK)dlsym(molten, "vkSetMoltenVKConfigurationMVK");
 #endif
 
 	return SDL_WINDOW_VULKAN;

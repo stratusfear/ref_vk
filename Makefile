@@ -46,6 +46,16 @@
 # When disabled SDL 2 is used instead of SDL 3.
 WITH_SDL3:=yes
 
+# WITH_MOLTENVK
+# macOS only. Enables the MoltenVK specific tuning code (HAVE_MOLTENVK).
+#  auto - enable if MoltenVK/vk_mvk_moltenvk.h is found (default)
+#  yes  - force on
+#  no   - force off, e.g. for KosmicKrisp-only setups. Needs only the
+#         plain Khronos Vulkan headers.
+# At runtime the renderer works with either driver; MoltenVK specific
+# features are only used when MoltenVK is actually the active driver.
+WITH_MOLTENVK ?= auto
+
 # PKG_CONFIG
 # Specify program that configures SDL.
 # Needs to be overridable for cross-compilation.
@@ -257,6 +267,22 @@ endif
 
 # ----------
 
+# macOS: where SDL and the Vulkan headers/loader may live. Searched in
+# this order, only existing directories are used:
+#  - $(VULKAN_SDK)           LunarG SDK (<sdk>/macOS)
+#  - `brew --prefix`         Homebrew (/opt/homebrew on Apple Silicon,
+#                            /usr/local on Intel)
+#  - /opt/local              MacPorts
+#  - /usr/local              manual installs
+# Override with e.g. MACOS_PREFIXES="/opt/local" to pin a single one.
+ifeq ($(YQ2_OSTYPE),Darwin)
+uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
+MACOS_PREFIXES ?= $(VULKAN_SDK) $(shell brew --prefix 2>/dev/null) /opt/homebrew /opt/local /usr/local
+MACOS_PREFIXES := $(call uniq,$(foreach p,$(MACOS_PREFIXES),$(if $(wildcard $(p)/include),$(p))))
+endif
+
+# ----------
+
 # Base include path.
 ifeq ($(YQ2_OSTYPE),Linux)
 INCLUDE ?= -I/usr/include
@@ -269,8 +295,27 @@ INCLUDE ?= -I/usr/local/include
 else ifeq ($(YQ2_OSTYPE),Windows)
 INCLUDE ?= -I/usr/include
 else ifeq ($(YQ2_OSTYPE),Darwin)
-MOLTENVK_PATH ?= $(shell brew --prefix molten-vk)
-INCLUDE ?= -I$(MOLTENVK_PATH)/libexec/include -I$(MOLTENVK_PATH)/include
+INCLUDE ?= $(foreach p,$(MACOS_PREFIXES),-I$(p)/include)
+endif
+
+# ----------
+
+# MoltenVK detection (macOS only)
+ifeq ($(YQ2_OSTYPE),Darwin)
+ifeq ($(WITH_MOLTENVK),auto)
+MVK_HEADER_DIRS := $(patsubst -I%,%,$(filter -I%,$(INCLUDE))) $(if $(VULKAN_SDK),$(VULKAN_SDK)/include)
+ifneq ($(strip $(foreach d,$(MVK_HEADER_DIRS),$(wildcard $(d)/MoltenVK/vk_mvk_moltenvk.h))),)
+override WITH_MOLTENVK := yes
+else
+override WITH_MOLTENVK := no
+endif
+endif
+ifeq ($(WITH_MOLTENVK),yes)
+override CFLAGS += -DHAVE_MOLTENVK
+ifdef VULKAN_SDK
+override INCLUDE += -I$(VULKAN_SDK)/include
+endif
+endif
 endif
 
 # ----------
@@ -287,7 +332,7 @@ LDFLAGS ?= -L/usr/local/lib
 else ifeq ($(YQ2_OSTYPE),Windows)
 LDFLAGS ?= -L/usr/lib
 else ifeq ($(YQ2_OSTYPE),Darwin)
-LDFLAGS ?= -L/usr/local/lib -L/opt/homebrew/lib
+LDFLAGS ?= $(foreach p,$(MACOS_PREFIXES),-L$(p)/lib)
 endif
 
 # Link address sanitizer if requested.

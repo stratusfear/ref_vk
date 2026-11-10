@@ -1816,6 +1816,43 @@ QVk_PostInit(void)
 ** This is responsible for initializing Vulkan.
 **
 */
+#if defined(__APPLE__)
+/* internal helper */
+static qboolean
+instanceExtensionSupported(const char *name)
+{
+	uint32_t count = 0;
+	VkExtensionProperties *props;
+	qboolean found = false;
+
+	if (vkEnumerateInstanceExtensionProperties(NULL, &count, NULL) != VK_SUCCESS || count == 0)
+	{
+		return false;
+	}
+
+	props = malloc(count * sizeof(*props));
+	if (!props)
+	{
+		return false;
+	}
+
+	if (vkEnumerateInstanceExtensionProperties(NULL, &count, props) == VK_SUCCESS)
+	{
+		for (uint32_t i = 0; i < count; i++)
+		{
+			if (!strcmp(props[i].extensionName, name))
+			{
+				found = true;
+				break;
+			}
+		}
+	}
+
+	free(props);
+	return found;
+}
+#endif
+
 qboolean
 QVk_Init(void)
 {
@@ -1865,8 +1902,14 @@ QVk_Init(void)
 		extCount++;
 	}
 
-#if defined(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME) && defined(__APPLE__)
-	extCount++;
+#if defined(__APPLE__)
+	// Only portability layers (MoltenVK) need this; conformant drivers
+	// such as KosmicKrisp don't expose it.
+	qboolean portabilityEnumeration = instanceExtensionSupported(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+	if (portabilityEnumeration)
+	{
+		extCount++;
+	}
 #endif
 
 	wantedExtensions = malloc(extCount * sizeof(char *));
@@ -1912,9 +1955,12 @@ QVk_Init(void)
 		wantedExtensions[extCount - 1] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
 	}
 
-#if defined(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME) && defined(__APPLE__)
-	extCount++;
-	wantedExtensions[extCount - 1] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+#if defined(__APPLE__)
+	if (portabilityEnumeration)
+	{
+		extCount++;
+		wantedExtensions[extCount - 1] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+	}
 #endif
 
 	Com_Printf("Enabled extensions: ");
@@ -1929,8 +1975,8 @@ QVk_Init(void)
 		.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 		.pNext = NULL,
 		.pApplicationInfo = &appInfo,
-#if defined(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME) && defined(__APPLE__)
-		.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
+#if defined(__APPLE__)
+		.flags = portabilityEnumeration ? VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR : 0,
 #endif
 		.enabledLayerCount = 0,
 		.ppEnabledLayerNames = NULL,
@@ -1938,7 +1984,9 @@ QVk_Init(void)
 		.ppEnabledExtensionNames = (const char* const*)wantedExtensions
 	};
 
-#if defined(__APPLE__)
+#if defined(HAVE_MOLTENVK)
+	if (qvkGetMoltenVKConfigurationMVK && qvkSetMoltenVKConfigurationMVK)
+	{
 	MVKConfiguration vk_molten_config;
 	size_t vk_molten_len = sizeof(MVKConfiguration);
 	memset(&vk_molten_config, 0, vk_molten_len);
@@ -1967,6 +2015,7 @@ QVk_Init(void)
 		{
 			Com_Printf("%s(): Could not update the MoltenVK configuration\n", __func__);
 		}
+	}
 	}
 #endif
 

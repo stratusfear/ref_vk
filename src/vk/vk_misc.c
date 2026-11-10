@@ -262,7 +262,12 @@ void Vk_Strings_f(void)
 	Com_Printf("   deviceID: %d\n", vk_device.properties.deviceID);
 	Com_Printf("   vendorID: 0x%X (%s)\n",
 		vk_device.properties.vendorID, vk_config.vendor_name);
-#if defined(__APPLE__)
+	if (vk_device.driverName[0])
+	{
+		Com_Printf("   driverName: %s\n", vk_device.driverName);
+	}
+#if defined(HAVE_MOLTENVK)
+	if (vk_device.isMoltenVK)
 	Com_Printf("   mslVersion: %d.%d.%d\n",
 		VK_VERSION_MAJOR(vk_device.metalFeatures.mslVersion),
 		VK_VERSION_MINOR(vk_device.metalFeatures.mslVersion),
