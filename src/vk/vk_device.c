@@ -60,16 +60,22 @@ deviceExtensionsSupported(const VkPhysicalDevice *physicalDevice, const char* ex
 }
 
 /* internal helper: fetch the driver name / id of a physical device.
-   Returns true if the device is driven by MoltenVK. */
+   Returns true if the device is driven by MoltenVK. Needs a Vulkan 1.2
+   device (or VK_KHR_driver_properties); otherwise driverName stays empty. */
 static qboolean
-queryDriver(VkPhysicalDevice device, char *driverName, size_t nameSize)
+queryDriver(VkPhysicalDevice device, uint32_t apiVersion, char *driverName, size_t nameSize)
 {
 	qboolean moltenvk = false;
 
 	driverName[0] = '\0';
 
 #if defined(VK_VERSION_1_2)
-	if (vkGetPhysicalDeviceProperties2)
+	// vkGetPhysicalDeviceProperties2 is core 1.1, VkPhysicalDeviceDriverProperties
+	// core 1.2. Both the instance (loader) and the device must be new enough.
+	if (vkGetPhysicalDeviceProperties2 && vk_config.vk_version >= VK_API_VERSION_1_1 &&
+		(apiVersion >= VK_API_VERSION_1_2 ||
+		 (apiVersion >= VK_API_VERSION_1_1 &&
+		  deviceExtensionsSupported(&device, "VK_KHR_driver_properties"))))
 	{
 		VkPhysicalDeviceDriverProperties driverProps = {
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES
@@ -110,7 +116,8 @@ getBestPhysicalDevice(const VkPhysicalDevice *devices, int preferredIdx,
 	{
 		vkGetPhysicalDeviceProperties(devices[i], &deviceProperties);
 		vkGetPhysicalDeviceFeatures(devices[i], &deviceFeatures);
-		isMoltenVK = queryDriver(devices[i], driverName, sizeof(driverName));
+		isMoltenVK = queryDriver(devices[i], deviceProperties.apiVersion,
+			driverName, sizeof(driverName));
 		(void)isMoltenVK;
 #if defined(HAVE_MOLTENVK)
 		memset(&deviceMetalFeatures, 0, sizeof(deviceMetalFeatures));

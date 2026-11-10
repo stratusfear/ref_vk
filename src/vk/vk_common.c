@@ -1904,8 +1904,9 @@ QVk_Init(void)
 	}
 
 #if defined(__APPLE__)
-	// Only portability layers (MoltenVK) need this; conformant drivers
-	// such as KosmicKrisp don't expose it.
+	// Needed to enumerate portability drivers (MoltenVK). The loader offers
+	// it whenever it supports it; it is harmless for conformant drivers
+	// such as KosmicKrisp. Very old loaders lack it.
 	qboolean portabilityEnumeration = instanceExtensionSupported(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 	if (portabilityEnumeration)
 	{

@@ -275,10 +275,15 @@ endif
 #  - /opt/local              MacPorts
 #  - /usr/local              manual installs
 # Override with e.g. MACOS_PREFIXES="/opt/local" to pin a single one.
+#
+# Homebrew's molten-vk keeps the Vulkan headers it was built against in
+# <keg>/libexec/include (not linked into the prefix). That directory is
+# added last, so it is only used when no other Vulkan headers are found.
 ifeq ($(YQ2_OSTYPE),Darwin)
 uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 MACOS_PREFIXES ?= $(VULKAN_SDK) $(shell brew --prefix 2>/dev/null) /opt/homebrew /opt/local /usr/local
 MACOS_PREFIXES := $(call uniq,$(foreach p,$(MACOS_PREFIXES),$(if $(wildcard $(p)/include),$(p))))
+MACOS_EXTRA_INCLUDES := $(wildcard $(shell brew --prefix molten-vk 2>/dev/null)/libexec/include)
 endif
 
 # ----------
@@ -295,7 +300,7 @@ INCLUDE ?= -I/usr/local/include
 else ifeq ($(YQ2_OSTYPE),Windows)
 INCLUDE ?= -I/usr/include
 else ifeq ($(YQ2_OSTYPE),Darwin)
-INCLUDE ?= $(foreach p,$(MACOS_PREFIXES),-I$(p)/include)
+INCLUDE ?= $(foreach p,$(MACOS_PREFIXES),-I$(p)/include) $(foreach d,$(MACOS_EXTRA_INCLUDES),-I$(d))
 endif
 
 # ----------
